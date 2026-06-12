@@ -15,7 +15,7 @@ Supports two modes:
 1. Copy and adapt `.env.example` (choose sim or hw config)
 
 
-2. Pick a mode — in `docker-compose.yaml` under `nut-upsd` → `volumes`. Simulation mode is uncommented by default.
+2. Pick a mode in `docker-compose.yaml` under `nut-upsd` → `volumes`. Simulation mode is uncommented by default.
 
 3. Bring up via Docker
 
