@@ -1,0 +1,42 @@
+services:
+  nut-upsd:
+    container_name: nut-upsd
+    image: instantlinux/nut-upsd:latest
+    restart: unless-stopped
+    ports:
+      - "3493:3493"
+    environment:
+      - TZ=America/Denver
+      - API_USER=${NUT_USER}
+      - API_PASSWORD=${NUT_PASSWORD}
+      - NAME=ups
+      - SERVER=primary
+      - DESCRIPTION=CyberPower EC850LCD
+    volumes:
+      # Simulation Mode
+      - ./ups.conf.sim:/etc/nut/local/ups.conf:ro
+      - ./upsd.conf:/etc/nut/local/upsd.conf:ro
+      - ./Cyber_Power_Systems_EC850LCD_simulation.dev:/etc/nut/local/Cyber_Power_Systems_EC850LCD_simulation.dev:ro
+
+      # Hardware Mode
+      # - ./ups.conf.hw:/etc/nut/local/ups.conf:ro
+      # - ./upsd.conf:/etc/nut/local/upsd.conf:ro
+
+    # devices:
+    #   - /dev/bus/usb:/dev/bus/usb
+
+  nut-exporter:
+    container_name: nut-exporter
+    image: druggeri/nut_exporter:latest
+    restart: unless-stopped
+    depends_on:
+      - nut-upsd
+    ports:
+    # Prometheus scrape endpoint (/ups_metrics)
+      - "9199:9199"
+    environment:
+      - TZ=America/Denver
+      - NUT_EXPORTER_SERVER=nut-upsd
+      - NUT_EXPORTER_USERNAME=${NUT_USER}
+      - NUT_EXPORTER_PASSWORD=${NUT_PASSWORD}
+      - NUT_EXPORTER_VARIABLES=battery.charge,battery.charge.low,battery.charge.warning,battery.runtime,battery.runtime.low,battery.voltage,battery.voltage.nominal,input.transfer.high,input.transfer.low,input.voltage,input.voltage.nominal,output.voltage,ups.load,ups.realpower.nominal,ups.status

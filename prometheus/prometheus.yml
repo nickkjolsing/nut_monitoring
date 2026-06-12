@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'nut'
+    metrics_path: '/ups_metrics'
+    params:
+      ups: ['ups']            # nut-upsd.environment.NAME from docker-compose.yaml
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['localhost:9199']
+        labels:
+          instance: 'desk_ups'

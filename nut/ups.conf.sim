@@ -1,0 +1,6 @@
+# Simulation driver, uses .dev script
+[ups]
+  driver = dummy-ups
+  port = /etc/nut/local/Cyber_Power_Systems_EC850LCD_simulation.dev
+  mode = dummy-loop
+  desc = "CyberPower EC850LCD (simulation)"

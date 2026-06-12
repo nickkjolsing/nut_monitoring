@@ -1,0 +1,71 @@
+# ==== Simulation Configs / Example Values ===================================
+battery.charge: 89
+battery.charge.low: 10
+battery.charge.warning: 20
+battery.mfr.date: CPS
+battery.runtime: 4316
+battery.runtime.low: 300
+battery.type: PbAcid
+battery.voltage: 14.1
+battery.voltage.nominal: 12
+device.mfr: CPS
+device.type: ups
+driver.name: usbhid-ups
+driver.parameter.pollfreq: 30
+driver.parameter.pollinterval: 2
+driver.parameter.port: /dev/ugen0.3
+driver.parameter.synchronous: no
+driver.version: 2.7.4
+driver.version.data: CyberPower HID 0.4
+driver.version.internal: 0.41
+input.transfer.high: 140
+input.transfer.low: 96
+input.voltage: 120.0
+input.voltage.nominal: 120
+output.voltage: 120.0
+ups.beeper.status: enabled
+ups.delay.shutdown: 20
+ups.delay.start: 30
+ups.load: 8
+ups.mfr: CPS
+ups.productid: 0501
+ups.realpower.nominal: 450
+ups.status: OL CHRG
+ups.test.result: No test initiated
+ups.timer.shutdown: -60
+ups.timer.start: 0
+ups.vendorid: 0764
+
+# ==== Simulation timeline (dummy-loop) ===================================
+# Loops back to the baseline snapshot at the top of this file (~3.7 min cycle)
+
+TIMER 60
+# --- on battery, discharging ---
+ups.status: OB DISCHRG
+input.voltage: 0.0
+output.voltage: 120.0
+
+TIMER 30
+battery.charge: 60
+battery.runtime: 2400
+battery.voltage: 13.2
+
+TIMER 30
+battery.charge: 30
+battery.runtime: 900
+battery.voltage: 12.4
+
+TIMER 20
+# --- Low-battery threshold crossed (battery.charge.low = 10) ---
+ups.status: OB LB DISCHRG
+battery.charge: 8
+battery.runtime: 180
+battery.voltage: 11.6
+
+TIMER 20
+# --- back online and recharging ---
+ups.status: OL CHRG
+input.voltage: 120.0
+battery.charge: 12
+
+TIMER 45

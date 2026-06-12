@@ -1,0 +1,8 @@
+# Find (ups.productid) and (ups.vendorid) on https://networkupstools.org/stable-hcl.html
+
+[ups]
+  driver = usbhid-ups
+  port = auto
+  vendorid = 0764
+  productid = 0501
+  desc = "CyberPower EC850LCD"
