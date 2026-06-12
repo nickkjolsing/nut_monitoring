@@ -45,7 +45,7 @@ curl -s 'localhost:9199/ups_metrics?ups=ups'
 ## Prometheus
 
 See the example at
-[prometheus/prometheus.yml](prometheus/prometheus.yml)
+[prometheus/prometheus.yml](prometheus/prometheus.yaml)
 
 <br>
 
