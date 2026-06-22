@@ -14,3 +14,5 @@ docker-compose.override.yaml
 .idea/
 .vscode/
 .claude/settings.json
+*upsd.users
+*upsmon.conf
