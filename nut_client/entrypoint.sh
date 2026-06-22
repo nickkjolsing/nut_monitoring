@@ -20,7 +20,7 @@ main=$(cat /run/nut/main.pid 2>/dev/null)
 EOF
 chmod +x /etc/nut/nutlog
 
-# --- shutdown action (shared by the FSD path and the on-battery timer) --------
+# --- shutdown action (shared by the FSD path and the charge watcher) ----------
 cat > /etc/nut/poweroff.sh <<'EOF'
 #! /bin/sh
 reason="${1:-unknown}"
@@ -40,7 +40,7 @@ nsenter -t 1 -m -u -i -n -p -- /sbin/shutdown -h now
 EOF
 chmod +x /etc/nut/poweroff.sh
 
-# --- NOTIFYCMD: log every upsmon event (logfmt), then hand off to upssched ----
+# --- NOTIFYCMD: log every upsmon event in logfmt ------------------------------
 cat > /etc/nut/notify.sh <<'EOF'
 #! /bin/sh
 host="${UPSNAME:-?}"
@@ -56,20 +56,63 @@ case "$NOTIFYTYPE" in
   SHUTDOWN) /etc/nut/nutlog crit shutdown "system shutdown in progress"  "host=$host" ;;
   *)        /etc/nut/nutlog info notify   "${NOTIFYTYPE:-unknown}"       "host=$host" ;;
 esac
-exec /usr/sbin/upssched
 EOF
 chmod +x /etc/nut/notify.sh
 
-# --- upssched CMDSCRIPT: timer name arrives as $1 -----------------------------
-cat > /etc/nut/upssched-cmd.sh <<'EOF'
+# --- charge watcher: starts the shutdown countdown once battery hits a % ------
+# Polls the primary's battery.charge. While on battery, once charge drops to
+# SHUTDOWN_START_CHARGE it starts an ONBATT_SHUTDOWN_DELAY countdown (logging
+# every poll), then runs poweroff.sh. Power returning cancels it. The UPS's own
+# LOWBATT/FSD path stays as a hard floor and can fire sooner.
+cat > /etc/nut/charge-watch.sh <<'EOF'
 #! /bin/sh
-case "$1" in
-  onbatt) /etc/nut/poweroff.sh onbatt ;;
-  tick-*) /etc/nut/nutlog info countdown "on battery" "remaining=${1#tick-}s" ;;
-  *)      /etc/nut/nutlog info timer "${1:-unknown}" ;;
-esac
+ups="ups@${PRIMARY_HOST}"
+poll="${CHARGE_POLL:-30}"
+threshold="${SHUTDOWN_START_CHARGE:-100}"
+delay="${ONBATT_SHUTDOWN_DELAY:-300}"
+deadline=0   # 0 = not counting; else epoch second to power off at
+fired=0      # 1 = already triggered this outage (so DRY_RUN doesn't re-fire)
+
+/etc/nut/nutlog info watch "charge watcher started" \
+  "ups=$ups" "start_charge=${threshold}%" "delay=${delay}s" "poll=${poll}s"
+
+while :; do
+  sleep "$poll"
+  status=$(upsc "$ups" ups.status 2>/dev/null)
+  [ -z "$status" ] && continue   # can't reach upsd this cycle -> keep state, retry
+  charge=$(upsc "$ups" battery.charge 2>/dev/null)
+  case " $status " in *" OB "*) on_batt=1 ;; *) on_batt=0 ;; esac
+
+  if [ "$on_batt" -eq 0 ]; then
+    if [ "$deadline" -ne 0 ] || [ "$fired" -eq 1 ]; then
+      /etc/nut/nutlog info online "power restored, shutdown countdown cancelled" "charge=${charge}%"
+    fi
+    deadline=0; fired=0
+    continue
+  fi
+
+  [ "$fired" -eq 1 ] && continue   # already fired (DRY_RUN); wait for power to return
+
+  if [ "$deadline" -eq 0 ]; then
+    # not counting yet -> start the countdown once charge reaches the threshold
+    if [ -n "$charge" ] && [ "$charge" -le "$threshold" ] 2>/dev/null; then
+      deadline=$(( $(date +%s) + delay ))
+      /etc/nut/nutlog warn threshold "battery ${charge}% <= ${threshold}%, starting shutdown countdown" \
+        "charge=${charge}%" "delay=${delay}s"
+    fi
+    continue
+  fi
+
+  remaining=$(( deadline - $(date +%s) ))
+  if [ "$remaining" -le 0 ]; then
+    /etc/nut/poweroff.sh charge
+    fired=1; deadline=0
+  else
+    /etc/nut/nutlog info countdown "on battery" "charge=${charge}%" "remaining=${remaining}s"
+  fi
+done
 EOF
-chmod +x /etc/nut/upssched-cmd.sh
+chmod +x /etc/nut/charge-watch.sh
 
 cat > /etc/nut/upsmon.conf <<EOF
 MONITOR ups@${PRIMARY_HOST} 1 upssecondary ${NUT_SECONDARY_PASSWORD} secondary
@@ -90,33 +133,19 @@ NOTIFYFLAG REPLBATT EXEC
 NOTIFYFLAG SHUTDOWN EXEC
 EOF
 
-# --- on-battery timers: real shutdown + every-30s countdown milestones --------
-# Milestones are derived from ONBATT_SHUTDOWN_DELAY so they always track .env
-{
-  echo "CMDSCRIPT /etc/nut/upssched-cmd.sh"
-  echo "PIPEFN /run/nut/upssched.pipe"
-  echo "LOCKFN /run/nut/upssched.lock"
-  echo "AT ONBATT * START-TIMER onbatt ${ONBATT_SHUTDOWN_DELAY:-300}"
-  echo "AT ONLINE * CANCEL-TIMER onbatt"
-  delay=${ONBATT_SHUTDOWN_DELAY:-300}
-  t=30
-  while [ "$t" -lt "$delay" ]; do
-    remaining=$((delay - t))
-    echo "AT ONBATT * START-TIMER tick-${remaining} ${t}"
-    echo "AT ONLINE * CANCEL-TIMER tick-${remaining}"
-    t=$((t + 30))
-  done
-} > /etc/nut/upssched.conf
-
-chown root:nut /etc/nut/upsmon.conf /etc/nut/upssched.conf
-chmod 640 /etc/nut/upsmon.conf /etc/nut/upssched.conf
+chown root:nut /etc/nut/upsmon.conf
+chmod 640 /etc/nut/upsmon.conf
 
 # --- startup summary ----------------------------------------------------------
 /etc/nut/nutlog info startup "nut-client starting" "host=ups@${PRIMARY_HOST}" \
-  "delay=${ONBATT_SHUTDOWN_DELAY:-300}s" "grace=${SHUTDOWN_GRACE:-0}s" "dry_run=${DRY_RUN:-false}"
+  "start_charge=${SHUTDOWN_START_CHARGE:-100}%" "delay=${ONBATT_SHUTDOWN_DELAY:-300}s" \
+  "grace=${SHUTDOWN_GRACE:-0}s" "dry_run=${DRY_RUN:-false}"
 if [ "${DRY_RUN:-false}" != "true" ]; then
   /etc/nut/nutlog warn startup "DRY_RUN off, a real shutdown WILL power off this host"
 fi
+
+# Background charge watcher (gates the on-battery countdown on battery %)
+/etc/nut/charge-watch.sh &
 
 # DEBUG_LEVEL in .env (0 = off, 1 = login/poll/state, 2+ = protocol noise)
 # upsmon takes repeated -D, so build "-DD.." from the level
