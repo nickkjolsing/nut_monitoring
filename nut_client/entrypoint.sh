@@ -45,6 +45,12 @@ EOF
 chown root:nut /etc/nut/upsmon.conf /etc/nut/upssched.conf
 chmod 640 /etc/nut/upsmon.conf /etc/nut/upssched.conf
 
+if [ "${DRY_RUN:-false}" = "true" ]; then
+  echo "nut-client: DRY_RUN enabled -> shutdowns will be logged, NOT executed"
+else
+  echo "nut-client: DRY_RUN off -> a forced shutdown (fsd message) WILL power off this host"
+fi
+
 # DEBUG_LEVEL in .env (0 = off, 1 = login/poll/state, 2+ = protocol noise)
 # upsmon takes repeated -D, so build "-DD.." from the level
 debug=
