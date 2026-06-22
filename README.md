@@ -19,7 +19,7 @@ Supports two modes:
 3. *For server / client shutdown capability* → create the configs, then open `3493/tcp` inbound from the clients (not required for exporter capabilities):
 
    ```bash
-   cd nut
+   cd nut_server
    cp upsd.users.example  upsd.users     # add primary and client logins
    cp upsmon.conf.example upsmon.conf    # primary config
    ```
@@ -51,18 +51,22 @@ Supports two modes:
 
 ## Clients
 
-**On each client:** follow [client/README.md](client/README.md)
+**On each client:** follow [nut_client/README.md](nut_client/README.md)
 
 <br>
 
-Test outage broadcast (doesn't actually shut down machine) via running on the primary:
+Test the forced-shutdown broadcast from the primary:
 
 ```bash
-docker exec nut-upsd upsmon -c fsd         # broadcast forced shutdown
+docker exec nut-upsd upsmon -c fsd         # broadcast FSD
 docker logs -f nut-upsd                    # watch the primary's events
 ```
 
-Test real shutdown on clients by changing the `SHUTDOWNCMD` in [upsmon.conf.example](nut/upsmon.conf.example)
+> The primary server itself won't shut down, it will just log by default. Controlled via `SHUTDOWNCMD` in 
+[upsmon.conf.example](nut_server/upsmon.conf.example)
+
+> **Connected clients will shut down** unless they set
+`DRY_RUN=true` in their `.env` ([nut_client/README.md](nut_client/README.md))
 
 <br>
 

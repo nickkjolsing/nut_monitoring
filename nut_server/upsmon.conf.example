@@ -10,6 +10,7 @@ MINSUPPLIES 1
 # What runs when THIS server must power off (UPS critical + battery low, once clients have disconnected)
 #
 # Default behvaior, simulation: just log it, doesn't shut down primary server
+# Clients behvaior is controlled via DRY_RUN in their .env file
 #
 # Uncomment below to actually enable the feature
 #   SHUTDOWNCMD "/sbin/shutdown -h +0"
