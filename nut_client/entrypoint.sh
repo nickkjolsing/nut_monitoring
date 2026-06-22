@@ -40,4 +40,13 @@ EOF
 chown root:nut /etc/nut/upsmon.conf /etc/nut/upssched.conf
 chmod 640 /etc/nut/upsmon.conf /etc/nut/upssched.conf
 
-exec upsmon -F
+# DEBUG_LEVEL in .env (0 = off, 1 = login/poll/state, 2+ = protocol noise)
+# upsmon takes repeated -D, so build "-DD.." from the level
+debug=
+level=0
+while [ "$level" -lt "${DEBUG_LEVEL:-0}" ]; do
+  debug="D$debug"
+  level=$((level + 1))
+done
+
+exec upsmon -F ${debug:+-$debug}
