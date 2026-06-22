@@ -73,7 +73,7 @@ docker logs -f nut-upsd                    # watch the primary's events
 ## Prometheus
 
 See the example at
-[prometheus/prometheus.yml](prometheus/prometheus_example.yaml)
+[prometheus/prometheus_example.yaml](prometheus/prometheus_example.yaml)
 
 <br>
 
