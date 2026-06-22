@@ -1,0 +1,14 @@
+# NUT client polls primary NUT server
+#
+# Powers off machine after ONBATT_SHUTDOWN_DELAY on battery (default 5 min, in .env)
+# or once UPS thorws OB LB (on battery, low battery) or FSD (forced shutdown)
+
+services:
+  nut-client:
+    build: .
+    container_name: nut-client
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host    # reach the primary's upsd on LAN
+    pid: host             # let nsenter halt the host
+    privileged: true      # required to run shutdown in the host namespace

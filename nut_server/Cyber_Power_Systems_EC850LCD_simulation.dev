@@ -37,7 +37,7 @@ ups.timer.start: 0
 ups.vendorid: 0764
 
 # ==== Simulation timeline (dummy-loop) ===================================
-# Loops back to the baseline snapshot at the top of this file (~3.7 min cycle)
+# Loops back to the baseline snapshot at the top of this file (~3.4 min cycle)
 
 TIMER 60
 # --- on battery, discharging ---

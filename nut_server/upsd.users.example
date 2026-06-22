@@ -1,0 +1,11 @@
+# Set the [upsmon] password to match NUT_PASSWORD in .env
+
+# Role: primary. Local monitor on this server + Prometheus exporter. 
+[upsmon]
+        password = CHANGE_ME_PRIMARY
+        upsmon primary
+
+# Role: secondary. Used by clients to login. Use in client .env NUT_SECONDARY_PASSWORD
+[upssecondary]
+        password = CHANGE_ME_SECONDARY
+        upsmon secondary
