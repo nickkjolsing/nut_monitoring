@@ -11,6 +11,12 @@ if [ "${DRY_RUN:-false}" = "true" ]; then
   echo "nut-client: DRY_RUN, would power off host for event '$1' (no shutdown)"
   exit 0
 fi
+# SHUTDOWN_GRACE → seconds to wait before the halt actually begins
+grace="${SHUTDOWN_GRACE:-0}"
+if [ "$grace" -gt 0 ]; then
+  echo "nut-client: event '$1' -> powering off host in ${grace}s"
+  sleep "$grace"
+fi
 logger -t nut-client "power event '$1' -> powering off host"
 nsenter -t 1 -m -u -i -n -p -- /sbin/shutdown -h now
 EOF
