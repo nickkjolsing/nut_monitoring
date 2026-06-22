@@ -6,6 +6,8 @@
 
 mkdir -p /run/nut && chown nut:nut /run/nut
 
+echo $$ > /run/nut/main.pid
+
 # --- logfmt helper: nutlog <level> <event> <msg> [key=val ...] ---------------
 cat > /etc/nut/nutlog <<'EOF'
 #! /bin/sh
@@ -13,7 +15,8 @@ level=$1; event=$2; msg=$3; shift 3
 extra=
 [ "$#" -gt 0 ] && extra=" $*"
 line=$(printf 'nut-client level=%s event=%s msg="%s"%s' "$level" "$event" "$msg" "$extra")
-echo "$line" >> /proc/1/fd/1 2>/dev/null || echo "$line"
+main=$(cat /run/nut/main.pid 2>/dev/null)
+{ [ -n "$main" ] && echo "$line" >> "/proc/$main/fd/1" 2>/dev/null; } || echo "$line"
 EOF
 chmod +x /etc/nut/nutlog
 
