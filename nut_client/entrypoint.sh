@@ -12,7 +12,8 @@ cat > /etc/nut/nutlog <<'EOF'
 level=$1; event=$2; msg=$3; shift 3
 extra=
 [ "$#" -gt 0 ] && extra=" $*"
-printf 'nut-client level=%s event=%s msg="%s"%s\n' "$level" "$event" "$msg" "$extra"
+line=$(printf 'nut-client level=%s event=%s msg="%s"%s' "$level" "$event" "$msg" "$extra")
+echo "$line" >> /proc/1/fd/1 2>/dev/null || echo "$line"
 EOF
 chmod +x /etc/nut/nutlog
 
