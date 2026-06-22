@@ -1,6 +1,6 @@
 # Network UPS Tools (NUT) Monitoring
 
-NUT server (`upsd`) + Prometheus exporter for a **CyberPower EC850LCD**
+NUT server (`upsd`) with server/client shutdown + Prometheus exporter and Grafana dashboard for a **CyberPower EC850LCD**
 
 Supports two modes:
 
