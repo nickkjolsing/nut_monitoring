@@ -2,8 +2,15 @@
 *.env
 !.env.example
 
+nut/upsd.users
+nut/upsmon.conf
+
+docker-compose.override.yaml
+**/docker-compose.override.yaml
+
 # OS / editor cruft
 .DS_Store
 *.swp
 .idea/
 .vscode/
+.claude/settings.json

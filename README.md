@@ -10,20 +10,27 @@ Supports two modes:
 
 <br>
 
-## How to Use
+## How to Setup and Use
 
 1. Copy and adapt `.env.example` (choose sim or hw config)
 
+2. Pick a mode in `docker-compose.yaml` under `nut-upsd` → `volumes`. Simulation mode is uncommented by default
 
-2. Pick a mode in `docker-compose.yaml` under `nut-upsd` → `volumes`. Simulation mode is uncommented by default.
+3. *For server / client shutdown capability* → create the configs, then open `3493/tcp` inbound from the clients (not required for exporter capabilities):
 
-3. Bring up via Docker
+   ```bash
+   cd nut
+   cp upsd.users.example  upsd.users     # add primary and client logins
+   cp upsmon.conf.example upsmon.conf    # primary config
+   ```
 
-4. Check it's working
+4. Bring up via Docker
 
-```bash
-curl -s 'localhost:9199/ups_metrics?ups=ups'
-```
+5. Check it's working
+
+   ```bash
+   curl -s 'localhost:9199/ups_metrics?ups=ups'
+   ```
 
 <br>
 
@@ -42,16 +49,33 @@ curl -s 'localhost:9199/ups_metrics?ups=ups'
 
 <br>
 
+## Clients
+
+**On each client:** follow [client/README.md](client/README.md)
+
+<br>
+
+Test outage broadcast (doesn't actually shut down machine) via running on the primary:
+
+```bash
+docker exec nut-upsd upsmon -c fsd         # broadcast forced shutdown
+docker logs -f nut-upsd                    # watch the primary's events
+```
+
+Test real shutdown on clients by changing the `SHUTDOWNCMD` in [upsmon.conf.example](nut/upsmon.conf.example)
+
+<br>
+
 ## Prometheus
 
 See the example at
-[prometheus/prometheus.yml](prometheus/prometheus.yml)
+[prometheus/prometheus.yml](prometheus/prometheus_example.yaml)
 
 <br>
 
 ## Simulated values
 
-The included `.dev` serves example metrics on a `TIMER` loop / outage scenario
+The included `Cyber_Power_Systems_EC850LCD_simulation.dev` file serves example metrics on a `TIMER` loop / outage scenario
 
 * normal → on battery →
 draining → **OB LB** (low battery) → recovery → back to baseline

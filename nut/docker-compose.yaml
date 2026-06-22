@@ -13,6 +13,10 @@ services:
       - SERVER=primary
       - DESCRIPTION=CyberPower EC850LCD
     volumes:
+      # Multi-client (primary/secondary shutdown)
+      # - ./upsd.users:/etc/nut/local/upsd.users:ro
+      # - ./upsmon.conf:/etc/nut/local/upsmon.conf:ro
+      
       # Simulation Mode
       - ./ups.conf.sim:/etc/nut/local/ups.conf:ro
       - ./upsd.conf:/etc/nut/local/upsd.conf:ro

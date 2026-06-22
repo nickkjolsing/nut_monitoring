@@ -1,0 +1,39 @@
+# Primary server config
+
+# Monitor localhost to determine whether it needs to shut itself down
+# Change CHANGE_ME_PRIMARY to the NUT_PASSWORD in .env
+MONITOR ups@localhost 1 upsmon CHANGE_ME_PRIMARY primary
+
+# Shut down once this many power supplies are gone
+MINSUPPLIES 1
+
+# What runs when THIS server must power off (UPS critical + battery low, once clients have disconnected)
+#
+# Default behvaior, simulation: just log it, doesn't shut down primary server
+#
+# Uncomment below to actually enable the feature
+#   SHUTDOWNCMD "/sbin/shutdown -h +0"
+SHUTDOWNCMD "/bin/sh -c 'logger -t upsmon PRIMARY SHUTDOWNCMD fired (simulation)'"
+
+POWERDOWNFLAG /etc/killpower
+RUN_AS_USER nut
+
+# --- Timing ----------------------------------------------------------------
+POLLFREQ 5         # seconds between polling upsd while on power
+POLLFREQALERT 5    # seconds between polls once on battery
+# Easiest way to visualize the following values
+# Give clients up to 30s to shutdown, treat any client I haven't heard from in 30s as already down, pause 5s and shutdown
+HOSTSYNC 30        # seconds to wait for clients to send disconnect / shutdown signal, otherwise continues shutdown
+DEADTIME 30        # seconds the primary waits after the disconnect / shutdown signal was sent from client to assume it's offline
+FINALDELAY 5       # seconds to pause before executing local SHUTDOWNCMD, shutting down primary server
+
+# --- Notifications: surface events / commands in docker logs
+NOTIFYFLAG ONLINE   SYSLOG
+NOTIFYFLAG ONBATT   SYSLOG
+NOTIFYFLAG LOWBATT  SYSLOG
+NOTIFYFLAG FSD      SYSLOG
+NOTIFYFLAG SHUTDOWN SYSLOG
+NOTIFYFLAG REPLBATT SYSLOG
+NOTIFYFLAG COMMOK   SYSLOG
+NOTIFYFLAG COMMBAD  SYSLOG
+NOTIFYFLAG NOCOMM   SYSLOG
