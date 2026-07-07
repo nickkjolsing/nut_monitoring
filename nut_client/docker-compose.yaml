@@ -12,3 +12,9 @@ services:
     network_mode: host    # reach the primary's upsd on LAN
     pid: host             # let nsenter halt the host
     privileged: true      # required to run shutdown in the host namespace
+    # Override the baked-in shutdown drivers/hooks without rebuilding the image.
+    # Drop your own <profile>.sh / pre.sh / post.sh in ./shutdown.d and uncomment.
+    # (See shutdown.d/README.md. For the ssh profile, also mount a key, e.g.
+    #  - ./id_nut:/etc/nut/ssh_key:ro )
+    # volumes:
+    #   - ./shutdown.d:/etc/nut/shutdown.d:ro

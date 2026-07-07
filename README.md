@@ -53,6 +53,10 @@ Supports two modes:
 
 **On each client:** follow [nut_client/README.md](nut_client/README.md)
 
+Different client types can halt their own way (a Linux NAS, a host that must stop
+services first, an appliance shut down over SSH) via pluggable shutdown drivers +
+hooks — see [nut_client/shutdown.d/README.md](nut_client/shutdown.d/README.md).
+
 <br>
 
 Test the forced-shutdown broadcast from the primary:

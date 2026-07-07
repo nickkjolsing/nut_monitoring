@@ -20,23 +20,63 @@ main=$(cat /run/nut/main.pid 2>/dev/null)
 EOF
 chmod +x /etc/nut/nutlog
 
-# --- shutdown action (shared by the FSD path and the charge watcher) ----------
+# --- shutdown orchestrator (shared by the FSD path and the charge watcher) -----
+# Owns the shared logic (dry-run, grace, pre/post hooks, logging) and delegates
+# the actual halt to a swappable "driver" selected by SHUTDOWN_PROFILE. Drivers
+# and hooks live in /etc/nut/shutdown.d (baked into the image, or bind-mounted
+# per-client). See /etc/nut/shutdown.d/README.md for the contract.
+#   - SHUTDOWN_PROFILE=default        -> built-in nsenter halt (no file needed)
+#   - SHUTDOWN_PROFILE=<name>         -> sources shutdown.d/<name>.sh (do_shutdown)
+#   - shutdown.d/pre.sh  (optional)   -> quiesce hook (stop VMs/jails, sync, ...)
+#   - shutdown.d/post.sh (optional)   -> runs after the halt returns (remote drivers)
 cat > /etc/nut/poweroff.sh <<'EOF'
 #! /bin/sh
 reason="${1:-unknown}"
-# DRY_RUN=true → log instead of halting the host (testing)
+profile="${SHUTDOWN_PROFILE:-default}"
+driverdir=/etc/nut/shutdown.d
+
+# DRY_RUN=true → log instead of halting the host (testing). Nothing destructive
+# runs in dry-run: no grace wait, no hooks, no driver.
 if [ "${DRY_RUN:-false}" = "true" ]; then
-  /etc/nut/nutlog warn dryrun "would power off host" "reason=$reason"
+  /etc/nut/nutlog warn dryrun "would power off host" "reason=$reason" "profile=$profile"
   exit 0
 fi
-# SHUTDOWN_GRACE → seconds to wait before the halt begins
+
+# SHUTDOWN_GRACE → abort window before anything destructive happens
 grace="${SHUTDOWN_GRACE:-0}"
 if [ "$grace" -gt 0 ] 2>/dev/null; then
-  /etc/nut/nutlog crit shutdown "powering off host" "reason=$reason" "grace=${grace}s"
+  /etc/nut/nutlog crit shutdown "powering off host" "reason=$reason" "profile=$profile" "grace=${grace}s"
   sleep "$grace"
 fi
-/etc/nut/nutlog crit shutdown "halting now" "reason=$reason"
-nsenter -t 1 -m -u -i -n -p -- /sbin/shutdown -h now
+
+# pre-shutdown hook → quiesce the host (stop VMs/jails/containers, sync, unmount)
+if [ -f "$driverdir/pre.sh" ]; then
+  /etc/nut/nutlog info prehook "running pre-shutdown hook" "reason=$reason"
+  REASON="$reason" sh "$driverdir/pre.sh"
+fi
+
+# default halt → nsenter into pid 1 and shut the host down. A profile driver may
+# override do_shutdown by defining its own (it is sourced below).
+do_shutdown() {
+  nsenter -t 1 -m -u -i -n -p -- /sbin/shutdown -h now
+}
+if [ "$profile" != "default" ]; then
+  if [ -f "$driverdir/$profile.sh" ]; then
+    . "$driverdir/$profile.sh"
+  else
+    /etc/nut/nutlog warn driver "profile '$profile' not found, using default halt" "dir=$driverdir"
+  fi
+fi
+
+/etc/nut/nutlog crit shutdown "halting now" "reason=$reason" "profile=$profile"
+do_shutdown "$reason"
+rc=$?
+
+# post-shutdown hook → reached mainly for remote/non-halting drivers (e.g. ssh)
+if [ -f "$driverdir/post.sh" ]; then
+  REASON="$reason" RC="$rc" sh "$driverdir/post.sh"
+fi
+exit "$rc"
 EOF
 chmod +x /etc/nut/poweroff.sh
 
@@ -139,7 +179,7 @@ chmod 640 /etc/nut/upsmon.conf
 # --- startup summary ----------------------------------------------------------
 /etc/nut/nutlog info startup "nut-client starting" "host=ups@${PRIMARY_HOST}" \
   "start_charge=${SHUTDOWN_START_CHARGE:-100}%" "delay=${ONBATT_SHUTDOWN_DELAY:-300}s" \
-  "grace=${SHUTDOWN_GRACE:-0}s" "dry_run=${DRY_RUN:-false}"
+  "grace=${SHUTDOWN_GRACE:-0}s" "profile=${SHUTDOWN_PROFILE:-default}" "dry_run=${DRY_RUN:-false}"
 if [ "${DRY_RUN:-false}" != "true" ]; then
   /etc/nut/nutlog warn startup "DRY_RUN off, a real shutdown WILL power off this host"
 fi

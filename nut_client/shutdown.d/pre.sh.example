@@ -1,0 +1,17 @@
+# pre-shutdown quiesce hook. Copy to pre.sh to enable.
+# Runs after the grace/abort window and before the halt. $REASON is set
+# (charge | lowbatt | ... ). Keep it quick-ish: the UPS battery is draining.
+#
+# Examples below are commented; uncomment/adapt what your host needs. Commands
+# that touch the *host* must run in its namespace via `nsenter -t 1 -m -u -i -n -p --`.
+
+/etc/nut/nutlog info prehook "quiescing host" "reason=${REASON:-unknown}"
+
+# Stop all Docker containers gracefully on the host
+# nsenter -t 1 -m -u -i -n -p -- docker stop $(nsenter -t 1 -m -u -i -n -p -- docker ps -q) 2>/dev/null
+
+# Stop a specific service
+# nsenter -t 1 -m -u -i -n -p -- systemctl stop my-app.service
+
+# Flush filesystem buffers
+nsenter -t 1 -m -u -i -n -p -- sync
