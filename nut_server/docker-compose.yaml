@@ -7,8 +7,8 @@ services:
       - "3493:3493"
     environment:
       - TZ=America/Denver
-      - API_USER=${NUT_USER}
-      - API_PASSWORD=${NUT_PASSWORD}
+      - API_USER=${NUT_USER:-upsmon}
+      - API_PASSWORD=${NUT_PASSWORD:?set NUT_PASSWORD in nut_server/.env}
       - NAME=ups
       - SERVER=primary
       - DESCRIPTION=CyberPower EC850LCD
@@ -41,6 +41,6 @@ services:
     environment:
       - TZ=America/Denver
       - NUT_EXPORTER_SERVER=nut-upsd
-      - NUT_EXPORTER_USERNAME=${NUT_USER}
-      - NUT_EXPORTER_PASSWORD=${NUT_PASSWORD}
+      - NUT_EXPORTER_USERNAME=${NUT_USER:-upsmon}
+      - NUT_EXPORTER_PASSWORD=${NUT_PASSWORD:?set NUT_PASSWORD in nut_server/.env}
       - NUT_EXPORTER_VARIABLES=battery.charge,battery.charge.low,battery.charge.warning,battery.runtime,battery.runtime.low,battery.voltage,battery.voltage.nominal,input.transfer.high,input.transfer.low,input.voltage,input.voltage.nominal,output.voltage,ups.load,ups.realpower.nominal,ups.status
