@@ -72,6 +72,58 @@ docker logs -f nut-upsd                    # watch the primary's events
 > **Connected clients will shut down** unless they set
 `DRY_RUN=true` in their `.env` ([nut_client/README.md](nut_client/README.md))
 
+> **With primary shutdown enabled (below), an FSD test powers off the primary
+and cycles the UPS output**, which reboots everything plugged into it.
+
+<br>
+
+## Primary shutdown
+
+`upsmon` runs inside the `nut-upsd` container, so a plain `/sbin/shutdown`
+can't reach the host (it isn't even in the image). In hardware mode, point
+`SHUTDOWNCMD` at [primary-shutdown.sh](nut_server/primary-shutdown.sh) and give
+the service the host's pid namespace:
+
+```yaml
+# docker-compose.override.yaml
+services:
+  nut-upsd:
+    pid: host
+    privileged: true
+    volumes:
+      - ./primary-shutdown.sh:/etc/nut/local/primary-shutdown.sh:ro
+      # ...plus the hardware-mode mounts
+```
+
+```
+# upsmon.conf
+SHUTDOWNCMD "/etc/nut/local/primary-shutdown.sh"
+```
+
+```
+# upsd.users, under [upsmon]
+instcmds = shutdown.return
+```
+
+When the UPS goes critical (on battery + LB, or FSD) and the clients have had
+`HOSTSYNC` seconds to log out, the script:
+
+1. sends `shutdown.return`, so the UPS cuts its output `offdelay` seconds later
+   and turns it back on when mains returns. Without it, hosts that powered off
+   stay off if the power comes back before the battery is flat. They need BIOS
+   "restore on AC power loss" set to power on.
+2. powers off the host via `nsenter … systemctl poweroff`.
+
+Set `KILLPOWER=0` on the service to skip step 1.
+
+[ups.conf.hw](nut_server/ups.conf.hw) sets when that happens: `ignorelb` with
+`override.battery.charge.low = 20` makes LB (and so the primary's shutdown) come
+at 20 % charge instead of the UPS's own 10 %, and `offdelay`/`ondelay` leave
+time for the primary to power off before the output drops.
+
+The image's entrypoint copies `/etc/nut/local/*` only on a container's first
+start, so apply config changes with `docker compose up -d --force-recreate`.
+
 <br>
 
 ## Prometheus

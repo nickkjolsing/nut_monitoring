@@ -6,6 +6,12 @@
 
 mkdir -p /run/nut && chown nut:nut /run/nut
 
+# A restart keeps the container's filesystem, so upsmon's pid file from the last
+# run is still here. With pid: host its number can belong to some live host
+# process, and upsmon then refuses to start ("A previous upsmon instance is
+# already running!"), crash-looping the container after every reboot.
+rm -f /run/upsmon.pid /run/nut/upsmon.pid
+
 echo $$ > /run/nut/main.pid
 
 # --- logfmt helper: nutlog <level> <event> <msg> [key=val ...] ---------------
@@ -16,7 +22,9 @@ extra=
 [ "$#" -gt 0 ] && extra=" $*"
 line=$(printf 'nut-client level=%s event=%s msg="%s"%s' "$level" "$event" "$msg" "$extra")
 main=$(cat /run/nut/main.pid 2>/dev/null)
-{ [ -n "$main" ] && echo "$line" >> "/proc/$main/fd/1" 2>/dev/null; } || echo "$line"
+# The 2>/dev/null has to wrap the group: on a bare command the failed >> is
+# reported before the stderr redirect takes effect.
+{ [ -n "$main" ] && echo "$line" >> "/proc/$main/fd/1"; } 2>/dev/null || echo "$line"
 EOF
 chmod +x /etc/nut/nutlog
 
@@ -69,8 +77,18 @@ if [ "$profile" != "default" ]; then
 fi
 
 /etc/nut/nutlog crit shutdown "halting now" "reason=$reason" "profile=$profile"
-do_shutdown "$reason"
-rc=$?
+rc=0
+do_shutdown "$reason" || rc=$?
+
+# A driver that errors out would leave the host running until the battery dies
+# (e.g. `shutdown -p` on a systemd host). Fall back to a plain systemd poweroff,
+# except for remote drivers, where this host isn't the one meant to go down.
+if [ "$rc" -ne 0 ] && [ "$profile" != "ssh" ]; then
+  /etc/nut/nutlog crit shutdown "driver failed, falling back to systemctl poweroff" \
+    "reason=$reason" "profile=$profile" "rc=$rc"
+  rc=0
+  nsenter -t 1 -m -u -i -n -p -- systemctl poweroff || rc=$?
+fi
 
 # post-shutdown hook → reached mainly for remote/non-halting drivers (e.g. ssh)
 if [ -f "$driverdir/post.sh" ]; then
@@ -87,7 +105,8 @@ host="${UPSNAME:-?}"
 case "$NOTIFYTYPE" in
   ONLINE)   /etc/nut/nutlog info online   "power restored"               "host=$host" ;;
   ONBATT)   /etc/nut/nutlog warn onbatt   "on battery"                   "host=$host" "delay=${ONBATT_SHUTDOWN_DELAY:-300}s" ;;
-  LOWBATT)  /etc/nut/nutlog crit lowbatt  "battery critical (OB LB)"     "host=$host" ;;
+  # LB alone (on mains, recharging) is harmless; upsmon only shuts down on OB + LB
+  LOWBATT)  /etc/nut/nutlog warn lowbatt  "battery low (LB)"             "host=$host" ;;
   FSD)      /etc/nut/nutlog crit fsd      "forced shutdown from primary" "host=$host" ;;
   COMMOK)   /etc/nut/nutlog info comm     "communications established"   "host=$host" ;;
   COMMBAD)  /etc/nut/nutlog warn comm     "communications lost"          "host=$host" ;;

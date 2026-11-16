@@ -9,12 +9,16 @@ MINSUPPLIES 1
 
 # What runs when THIS server must power off (UPS critical + battery low, once clients have disconnected)
 #
-# Default behvaior, simulation: just log it, doesn't shut down primary server
-# Clients behvaior is controlled via DRY_RUN in their .env file
+# Default behavior, simulation: just log it, doesn't shut down primary server
+# Clients' behavior is controlled via DRY_RUN in their .env file
 #
-# Uncomment below to actually enable the feature
-#   SHUTDOWNCMD "/sbin/shutdown -h +0"
-SHUTDOWNCMD "/bin/sh -c 'logger -t upsmon PRIMARY SHUTDOWNCMD fired (simulation)'"
+# To actually power off the primary (hardware mode), use primary-shutdown.sh:
+# it tells the UPS to cycle its output (so hosts boot again when mains
+# returns), then powers off the host. upsmon runs in a container, so this needs
+# `pid: host` + `privileged: true` and the script mounted (README, "Primary
+# shutdown"). Don't use /sbin/shutdown: it doesn't exist in the container.
+#   SHUTDOWNCMD "/etc/nut/local/primary-shutdown.sh"
+SHUTDOWNCMD "/bin/sh -c 'echo PRIMARY SHUTDOWNCMD fired, simulation only'"
 
 POWERDOWNFLAG /etc/killpower
 RUN_AS_USER nut

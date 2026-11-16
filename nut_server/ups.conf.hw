@@ -6,3 +6,21 @@
   vendorid = 0764
   productid = 0501
   desc = "CyberPower EC850LCD"
+
+  # When the primary shuts down. The EC850LCD raises LB at 10 % charge on its
+  # own, but its runtime estimate swings wildly near the end (274 s to 765 s a
+  # minute apart on 2026-11-16) and the primary then still needs HOSTSYNC +
+  # FINALDELAY + its own shutdown. ignorelb makes NUT set LB itself instead,
+  # as soon as charge or runtime falls below the overrides. 20 % was about
+  # ten minutes of runtime at the ~80 W load on 2026-11-16.
+  ignorelb
+  override.battery.charge.low = 20
+  override.battery.runtime.low = 120
+
+  # How long after primary-shutdown.sh sends shutdown.return the UPS cuts its
+  # output (ups.delay.shutdown), and when it may switch back on
+  # (ups.delay.start; it must be longer). The primary takes ~30 s to power off,
+  # and a client caught by FSD still needs SHUTDOWN_GRACE plus its own
+  # shutdown, so leave room. CyberPower works in whole minutes.
+  offdelay = 180
+  ondelay = 240

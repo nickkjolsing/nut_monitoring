@@ -4,6 +4,9 @@
 [upsmon]
         password = CHANGE_ME_PRIMARY
         upsmon primary
+        # primary-shutdown.sh uses this login to make the UPS cycle its output
+        instcmds = shutdown.return
+        instcmds = shutdown.stop
 
 # Role: secondary. Used by clients to login. Use in client .env NUT_SECONDARY_PASSWORD
 [upssecondary]

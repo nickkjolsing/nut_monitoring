@@ -38,7 +38,8 @@ do_shutdown() {
 Select it with `SHUTDOWN_PROFILE=myprofile` in `.env`. The built-in `default`
 profile needs no file — it `nsenter`s into pid 1 and runs `/sbin/shutdown -h
 now`. If a named profile's file is missing, the orchestrator falls back to the
-default halt (better to power off than hang on battery).
+default halt, and if a local driver's `do_shutdown` returns non-zero it falls
+back to `systemctl poweroff` (better to power off than hang on battery).
 
 > Halting the host from inside the container needs `pid: host` + `privileged`
 > (already set in docker-compose). Remote drivers (e.g. `ssh`) don't.
@@ -58,7 +59,7 @@ real name to enable it.
 | File             | `SHUTDOWN_PROFILE` | What it does |
 |------------------|--------------------|--------------|
 | `systemd.sh`     | `systemd`          | `nsenter` → `systemctl poweroff` |
-| `truenas.sh`     | `truenas`          | `nsenter` → `/sbin/shutdown -p now` (clean power-off) |
-| `hexos.sh`       | `hexos`            | Same halt as `truenas` (HexOS is TrueNAS SCALE-based); see file for Docker-app quiescing notes |
+| `truenas.sh`     | `truenas`          | `nsenter` → `midclt call system.shutdown` (middleware stops apps/VMs, exports pools), falling back to `systemctl poweroff` |
+| `hexos.sh`       | `hexos`            | Same as `truenas` (HexOS is TrueNAS SCALE underneath) |
 | `ssh.sh`         | `ssh`              | Remote shutdown over SSH (for appliances that can't run this container) |
 | `pre.sh.example` | —                  | Sample quiesce hook (stop Docker containers, `sync`) |
